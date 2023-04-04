@@ -43,7 +43,7 @@ def action_button_click(body, ack, say):
 @app.event("message")
 def handle_message_events(body, logger):
     logger.info(body)
-    print("hi")
+    print("hi+")
 
 @app.event("app_mention")
 def handle_app_mention_events(body, message, say, logger):
