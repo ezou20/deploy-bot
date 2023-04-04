@@ -85,7 +85,7 @@ if __name__ == "__main__":
         Tool(
             name='retool_docs',
             func=lambda question: str(index.query(question)),
-            description="Retool Documentation. Useful for anwswering questions about Retool. Includes best practices, reference API documnetation, how to guides, and reommendations.",
+            description="Retool Documentation. Useful for answering questions about Retool. Includes best practices, reference API documnetation, how to guides, and reommendations.",
             return_direct=True
         )
     ]
