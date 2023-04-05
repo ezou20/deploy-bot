@@ -37,19 +37,42 @@ def message_hello(message, say):
 @app.action("button_click")
 def action_button_click(body, ack, say):
     # Acknowledge the action
+    # we could maybe link to the right doc here
     ack()
     say(f"<@{body['user']['id']}> clicked the button")
 
 @app.event("message")
-def handle_message_events(body, logger):
+def handle_message_events(body, message, say, logger):
     logger.info(body)
-    print("hi+")
+    text = body['event']['text']
+    thread = body['event']['ts']
+    result = agent_chain.run(text)
+    print("handling thread response")
+    say(
+        blocks=[
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": f"{result}"},
+                "accessory": {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "Click Me"},
+                    "action_id": "button_click"
+                }
+            }
+        ],
+        text=f"Hey there !", thread_ts=thread
+    )
+    logger.info(body)
 
 @app.event("app_mention")
+@app.event("message")
 def handle_app_mention_events(body, message, say, logger):
-    print("handling message")
+    print("handling mention event")
     text = body['event']['text']
+    thread = body['event']['ts']
     result = agent_chain.run(text)
+    memory.chat_memory.add_user_message(text)
+    memory.chat_memory.add_ai_message(result)
     print(result)
     print("Body: ", body)
     # print(message)
@@ -65,7 +88,7 @@ def handle_app_mention_events(body, message, say, logger):
                 }
             }
         ],
-        text=f"Hey there !"
+        text=f"Hey there !", thread_ts=thread
     )
     logger.info(body)
 
