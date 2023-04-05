@@ -39,13 +39,6 @@ app = App(token=SLACK_BOT_TOKEN)
 #         text=f"Hey there <@{message['user']}>!"
 #     )
 
-# @app.action("button_click")
-# def action_button_click(body, ack, say):
-#     # Acknowledge the action
-#     # we could maybe link to the right doc here
-#     ack()
-#     say(f"<@{body['user']['id']}> clicked the button")
-
 # Check the messages in a thread to see if the Support Bot was mentioned at all and creates a thread history for the LLM to consume
 # Returns true if the bot was found
 def check_messages_in_thread(client, channel_id, thread_ts):
@@ -67,12 +60,28 @@ def check_messages_in_thread(client, channel_id, thread_ts):
 
     return support_bot_mentioned
 
-@app.event("app_mention")
-def handle_app_mention(body, client, logger):
+@app.event("message")
+def handle_message_events(body, client, logger):
     logger.info(body)
 
-@app.event("message")
-def handle_app_message_events(body, client, message, say, logger):
+@app.action("button_click")
+def action_button_click(body, ack, say):
+    print("CLICK BODY: ", body)
+    # Acknowledge the action
+    # we could maybe link to the right doc here
+    thread = body['message']['thread_ts']
+    # if 'thread_ts' in body['event']:
+    #     thread = body['event']['thread_ts']
+    ack()
+    print("Generating AI Response...")
+    ai_response = agent_chain.run(f"Write a nice supportive message to {body['user']['name']}")
+    say(
+        text=f"{ai_response}",
+        thread_ts=thread
+    )
+
+@app.event("app_mention")
+def handle_app_mention_events(body, client, message, say, logger):
     logger.info(body)
     text = body['event']['text']
     thread = body['event']['ts']
@@ -86,26 +95,26 @@ def handle_app_message_events(body, client, message, say, logger):
     print("CHANNEL ID: ", channel_id)
     
     # see if the bot was mentioned in the parent thread -- we only want it to respond in threads where it was mentioned
-    parent_conversation_object = client.conversations_history(
-        channel=channel_id,
-        inclusive=True,
-        oldest=thread,
-        limit=1
-    )
-    print("Parent Object: ", parent_conversation_object)
-    parent_message = parent_conversation_object['messages'][0]
+    # parent_conversation_object = client.conversations_history(
+    #     channel=channel_id,
+    #     inclusive=True,
+    #     oldest=thread,
+    #     limit=1
+    # )
+    # print("Parent Object: ", parent_conversation_object)
+    # parent_message = parent_conversation_object['messages'][0]
     
     # check if the parent message has a reaction that matches the magic emoji
-    emoji_in_message = False
-    if 'reactions' in parent_message:
-        parent_message_reactions = parent_conversation_object['messages'][0]['reactions']
-        for reaction in parent_message_reactions:
-            if reaction['name'] == emoji:
-                emoji_in_message = True
+    # emoji_in_message = False
+    # if 'reactions' in parent_message:
+    #     parent_message_reactions = parent_conversation_object['messages'][0]['reactions']
+    #     for reaction in parent_message_reactions:
+    #         if reaction['name'] == emoji:
+    #             emoji_in_message = True
 
     support_bot_in_thread = check_messages_in_thread(client, channel_id, thread)
 
-    if slack_bot_id in text or (support_bot_in_thread and emoji_in_message):
+    if slack_bot_id in text:
         print("Generating AI Response...")
         ai_response = agent_chain.run(text)
         response_message = f"{ai_response}" # Hey there <@{body['event']['user']}>! 
@@ -120,7 +129,7 @@ def handle_app_message_events(body, client, message, say, logger):
                     "text": {"type": "mrkdwn", "text": response_message},
                     "accessory": {
                         "type": "button",
-                        "text": {"type": "plain_text", "text": "Click Me"},
+                        "text": {"type": "plain_text", "text": "Click me for a fun surprise!"},
                         "action_id": "button_click"
                     }
                 }
@@ -141,7 +150,7 @@ if __name__ == "__main__":
         ),
         Tool(
             name='intro_bot',
-            func=lambda question: f"I am Retool's (emotional) Support AI bot! Ask me anything! If you want me to respond to all messages in this thread, react with :{emoji}: in the parent message of the thread.",
+            func=lambda question: f"I am Retool's (emotional) Support AI bot! Ask me anything! If you want me to respond tag me in your message and I'll try my best to help out :)",
             description="This bot is used for introducing what it does. Use this tool for when someone asks about the bot and what it does.",
             return_direct=True
         )
